@@ -6,8 +6,8 @@
 #include <fmt/format.h>
 #include <iostream>
 #include <memory>
-#include <stdint.h>
 #include <spdlog/spdlog.h>
+#include <stdint.h>
 #include <string>
 #include <string_view>
 #include <thread>
@@ -24,7 +24,6 @@ void pipe(tcp::socket &src_socket, tcp::socket &dest_socket) {
   constexpr size_t buffer_size = 1024 * 64;
   char data[buffer_size];
   try {
-
     while (true) {
       size_t length = src_socket.read_some(buffer(data, buffer_size));
       asio::write(dest_socket, buffer(data, length));
@@ -46,6 +45,7 @@ void forward(tcp::socket src_socket, tcp::socket dest_socket) {
   } catch (std::exception &e) {
     cerr << "Exception in forward: " << e.what() << endl;
   }
+  SPDLOG_INFO("forward closed.");
 }
 
 // Function to accept client connections and create forwarder threads
@@ -56,9 +56,9 @@ void accept_clients(tcp::acceptor &acceptor, tcp::endpoint dest_endpoint) {
     while (true) {
       tcp::socket client_socket(acceptor.get_executor());
       acceptor.accept(client_socket);
-      std::cout << "new connection from "
-                << client_socket.remote_endpoint().address().to_string() << ":"
-                << client_socket.remote_endpoint().port() << "\n";
+      auto remote = client_socket.remote_endpoint();
+      SPDLOG_INFO("new connection from {}:{}", remote.address().to_string(),
+                  remote.port());
 
       // Create a destination socket and connect
       tcp::socket dest_socket(acceptor.get_executor());
