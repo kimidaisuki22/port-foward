@@ -6,6 +6,7 @@
         "fmt",
         "gtest",
         "benchmark",
-        "asio"
+        "asio",
+        "spdlog"
     ]
 }

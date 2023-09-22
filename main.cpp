@@ -3,8 +3,11 @@
 #include <asio/registered_buffer.hpp>
 #include <asio/write.hpp>
 #include <exception>
+#include <fmt/format.h>
 #include <iostream>
 #include <memory>
+#include <stdint.h>
+#include <spdlog/spdlog.h>
 #include <string>
 #include <string_view>
 #include <thread>
@@ -76,7 +79,17 @@ void accept_clients(tcp::acceptor &acceptor, tcp::endpoint dest_endpoint) {
     }
   }
 }
+struct Forward_item {
+  std::string listen_address_;
+  std::string dest_address_;
 
+  uint16_t listen_port_;
+  uint16_t dest_port_;
+};
+std::string to_string(const Forward_item &item) {
+  return fmt::format("forward from {}:{} -> {}:{}", item.listen_address_,
+                     item.listen_port_, item.dest_address_, item.dest_port_);
+}
 int main(int argc, char **argv) {
   if (argc < 5) {
     std::cerr << "Usage "
@@ -84,17 +97,20 @@ int main(int argc, char **argv) {
     exit(1);
   }
   try {
+    Forward_item item(argv[3], argv[1], std::stoi(argv[4]), std::stoi(argv[2]));
     io_context io;
 
     // Define source and destination endpoints
-    tcp::endpoint source_endpoint(ip::address::from_string(argv[3]),
-                                  std::stoi(argv[4])); // Change as needed
-    tcp::endpoint dest_endpoint(ip::address::from_string(argv[1]),
-                                std::stoi(argv[2])); // Change as needed
+    tcp::endpoint source_endpoint(
+        ip::address::from_string(item.listen_address_),
+        item.listen_port_); // Change as needed
+    tcp::endpoint dest_endpoint(ip::address::from_string(item.dest_address_),
+                                item.dest_port_); // Change as needed
 
     // Create an acceptor for clients
     tcp::acceptor acceptor(io, source_endpoint);
 
+    SPDLOG_INFO("start forward: {}", to_string(item));
     // Start accepting clients and forwarding data
     accept_clients(acceptor, dest_endpoint);
   } catch (std::exception &e) {
