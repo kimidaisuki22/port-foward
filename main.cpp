@@ -4,7 +4,6 @@
 #include <asio/write.hpp>
 #include <exception>
 #include <fmt/format.h>
-#include <iostream>
 #include <memory>
 #include <spdlog/spdlog.h>
 #include <stdint.h>
@@ -15,9 +14,6 @@
 
 using namespace asio;
 using ip::tcp;
-using std::cerr;
-using std::cout;
-using std::endl;
 using std::vector;
 
 void pipe(tcp::socket &src_socket, tcp::socket &dest_socket) {
@@ -30,21 +26,17 @@ void pipe(tcp::socket &src_socket, tcp::socket &dest_socket) {
       // std::cout << std::string_view{data, length};
     }
   } catch (std::exception &e) {
-
-    cerr << "Exception in forward: " << e.what() << endl;
+    SPDLOG_ERROR("Exception in pipe: {}", e.what());
   }
 }
 
 // Function to forward data between two sockets
 void forward(tcp::socket src_socket, tcp::socket dest_socket) {
-  try {
-    std::thread t1{[&] { pipe(src_socket, dest_socket); }};
-    pipe(dest_socket, src_socket);
+  std::thread t1{[&] { pipe(src_socket, dest_socket); }};
+  pipe(dest_socket, src_socket);
 
-    t1.join();
-  } catch (std::exception &e) {
-    cerr << "Exception in forward: " << e.what() << endl;
-  }
+  t1.join();
+
   SPDLOG_INFO("forward closed.");
 }
 
@@ -69,7 +61,7 @@ void accept_clients(tcp::acceptor &acceptor, tcp::endpoint dest_endpoint) {
                                      std::move(dest_socket));
     }
   } catch (std::exception &e) {
-    cerr << "Exception in accept_clients: " << e.what() << endl;
+    SPDLOG_CRITICAL("Exception in accept clients: {}", e.what());
   }
 
   // Wait for all forwarder threads to finish
@@ -92,12 +84,11 @@ std::string to_string(const Forward_item &item) {
 }
 int main(int argc, char **argv) {
   if (argc < 5) {
-    std::cerr << "Usage "
-              << "'dest' 'port' <- 'listen ip' 'port'\n";
+    SPDLOG_INFO("Usage: (listen ip) (port) (dest address) (port)");
     exit(1);
   }
   try {
-    Forward_item item(argv[3], argv[1], std::stoi(argv[4]), std::stoi(argv[2]));
+    Forward_item item(argv[1], argv[3], std::stoi(argv[2]), std::stoi(argv[4]));
     io_context io;
 
     // Define source and destination endpoints
@@ -114,7 +105,7 @@ int main(int argc, char **argv) {
     // Start accepting clients and forwarding data
     accept_clients(acceptor, dest_endpoint);
   } catch (std::exception &e) {
-    cerr << "Exception in main: " << e.what() << endl;
+    SPDLOG_ERROR("Exception in main: {}", e.what());
   }
 
   return 0;
